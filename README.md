@@ -33,5 +33,5 @@ A Docker image is planned for distribution.
 
 ## Known issues
 
-- Navigation between static files doesn't work
+- Navigation between static files only works with full links
 
