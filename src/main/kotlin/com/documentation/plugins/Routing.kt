@@ -7,10 +7,10 @@ import io.ktor.server.application.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.util.pipeline.*
+import java.io.File
 import org.eclipse.jgit.api.Git
 import org.eclipse.jgit.lib.ObjectId
 import org.eclipse.jgit.treewalk.TreeWalk
-import java.io.File
 
 fun Application.configureRouting() {
   routing { route("/help") { getProduct() } }
@@ -21,14 +21,22 @@ val pageRegex = """.+\.html$""".toRegex()
 
 fun Route.getProduct() {
   route("/{name}") {
-
-    get ("/{tokens...}") {
+    get("/{tokens...}") {
       // the tokens can have a version, file path, subproduct - anything, so we have a parser
       val productName = call.parameters["name"].toString()
       val tokens = call.parameters.getAll("tokens")
       val doc = parseTokens(productName, tokens)
       if (doc == null) {
-        call.respondText(text = "404: $productName not found",status = HttpStatusCode.NotFound)
+        call.respondText(text = "404: $productName not found", status = HttpStatusCode.NotFound)
+        return@get
+      }
+      // Explicit redirects are needed for navigation between static files to work
+      if (tokens == null || tokens.isEmpty() || !pageRegex.matches(tokens.last())) {
+        if (doc.productVersion == StoredProductDocumentation.getDefaultVersion(productName)) {
+          call.respondRedirect("/help/${doc.productName}/${doc.page}")
+        } else {
+          call.respondRedirect("/help/${doc.productName}/${doc.productVersion}/${doc.page}")
+        }
         return@get
       }
       processProduct(doc)
@@ -49,18 +57,17 @@ private suspend fun parseTokens(productName: String, tokens: List<String>?): Pro
   var page: String
   val firstToken = tokens[0]
   var restOfTokens = listOf<String>()
-  if(tokens.size > 1) {
+  if (tokens.size > 1) {
     restOfTokens = tokens.subList(1, tokens.size)
   }
   if (versionRegex.matches(firstToken)) {
     // version
     page = StoredProductDocumentation.getInitialPage(productName)
     version = firstToken
-  } else if (pageRegex.matches(firstToken) && tokens.size == 1){
+  } else if (pageRegex.matches(firstToken) && tokens.size == 1) {
     version = StoredProductDocumentation.getDefaultVersion(productName)
     page = firstToken
-  }
-  else {
+  } else {
     // subproduct
     val subproductName = "${productName}/${firstToken}"
     if (StoredProductDocumentation.exists(subproductName)) {
@@ -80,7 +87,9 @@ private suspend fun parseTokens(productName: String, tokens: List<String>?): Pro
   return ProductDocumentation(productName, version, page)
 }
 
-private suspend fun PipelineContext<Unit, ApplicationCall>.processProduct(doc: ProductDocumentation) {
+private suspend fun PipelineContext<Unit, ApplicationCall>.processProduct(
+    doc: ProductDocumentation
+) {
   val git: Git = Git.open(File("docs/${doc.productName}"))
   val treeId = git.repository.resolve("refs/heads/${doc.productVersion}^{tree}")
   if (treeId == null) {
