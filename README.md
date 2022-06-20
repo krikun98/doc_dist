@@ -49,5 +49,4 @@ from the default `-o` option.
 
 ## Known issues
 
-- Update coroutine may cause data races, granular mutexes (per submodule) will be implemented
 - JGit is overly enthusiastic with its logging
