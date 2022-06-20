@@ -40,6 +40,7 @@ A Docker image is planned for distribution.
 ## TODO
 
 - Docker distribution image
+- Tests
 
 ## Known issues
 
