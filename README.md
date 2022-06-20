@@ -46,6 +46,7 @@ from the default `-o` option.
 
 - Tests
 - Security credentials management system (for JGit to access private repos)
+- More granular concurrency restrictions
 
 ## Known issues
 
