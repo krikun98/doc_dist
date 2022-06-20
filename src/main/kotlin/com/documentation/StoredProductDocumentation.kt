@@ -1,41 +1,41 @@
 package com.documentation
 
+import com.documentation.updater.GitWorker
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
+import java.io.File
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Mutex
-import java.io.File
 
-data class StoredProductDocumentation(
-    val productVersion: String,
-    val initialPage: String,
-) {
+data class StoredProductDocumentation(val productVersion: String, val initialPage: String) {
   companion object {
-    val productListLocation = "docs/metadata.json"
+    private val mapper = jacksonObjectMapper()
 
-    val mapper = jacksonObjectMapper()
-
-    var productList: Map<String, StoredProductDocumentation>
+    private var productList: Map<String, StoredProductDocumentation> = HashMap()
 
     var mut: Mutex = Mutex()
 
     init {
       mapper.registerKotlinModule()
-      productList = readProductList(productListLocation)
     }
 
-    private fun readProductList(fileName: String): Map<String, StoredProductDocumentation> {
-      val jsonString: String = File(fileName).readText(Charsets.UTF_8)
-      return mapper.readValue(jsonString)
+    fun readProductList(productListLocation: String) {
+      val jsonString: String = File("$productListLocation/$METADATA_FILE").readText(Charsets.UTF_8)
+      productList = mapper.readValue(jsonString)
     }
 
-    suspend fun updateProductList() {
+    suspend fun updateProductList(
+        gitWorker: GitWorker,
+        productListLocation: String,
+        updateFrequency: Long
+    ) {
       while (true) {
         mut.lock()
-        productList = readProductList(productListLocation)
+        readProductList(productListLocation)
+        gitWorker.updateModules(productList)
         mut.unlock()
-        delay(30000)
+        delay(updateFrequency * 60 * 1000)
       }
     }
 
@@ -74,4 +74,3 @@ data class StoredProductDocumentation(
     }
   }
 }
-

@@ -2,25 +2,22 @@ package com.documentation.plugins
 
 import com.documentation.ProductDocumentation
 import com.documentation.StoredProductDocumentation
+import com.documentation.updater.GitWorker
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.util.pipeline.*
 import java.io.File
-import org.eclipse.jgit.lib.ObjectId
-import org.eclipse.jgit.lib.Repository
-import org.eclipse.jgit.lib.RepositoryBuilder
-import org.eclipse.jgit.treewalk.TreeWalk
 
-fun Application.configureRouting(documentationRepository: String) {
-  routing { route("/help") { getProduct(documentationRepository) } }
+fun Application.configureRouting(repositoryPath: String, gitWorker: GitWorker) {
+  routing { route("/help") { getProduct(repositoryPath, gitWorker) } }
 }
 
 val versionRegex = """^\d{4}\.\d+$""".toRegex()
 val pageRegex = """.+\.html$""".toRegex()
 
-fun Route.getProduct(documentationRepository: String) {
+fun Route.getProduct(repositoryPath: String, gitWorker: GitWorker) {
   route("/{name}") {
     get("/{tokens...}") {
       // the tokens can have a version, file path, subproduct - anything, so they're run through a
@@ -42,7 +39,7 @@ fun Route.getProduct(documentationRepository: String) {
         }
         return@get
       }
-      processProduct(documentationRepository, doc)
+      processProduct(repositoryPath, doc, gitWorker)
     }
   }
 }
@@ -93,23 +90,24 @@ private suspend fun parseTokens(productName: String, tokens: List<String>?): Pro
 }
 
 private suspend fun PipelineContext<Unit, ApplicationCall>.processProduct(
-    documentationRepository: String,
-    doc: ProductDocumentation
+    repositoryPath: String,
+    doc: ProductDocumentation,
+    gitWorker: GitWorker
 ) {
   val defaultVersionForProduct = StoredProductDocumentation.getDefaultVersion(doc.productName)
   if (doc.productVersion == defaultVersionForProduct) {
-    processProductWithFilesystem(documentationRepository, doc)
+    processProductWithFilesystem(repositoryPath, doc)
   } else {
-    processProductWithGit(documentationRepository, doc)
+    processProductWithGit(repositoryPath, doc, gitWorker)
   }
 }
 
 // Filesystem is storing the current version, no need to use git here
 private suspend fun PipelineContext<Unit, ApplicationCall>.processProductWithFilesystem(
-    documentationRepository: String,
+    repositoryPath: String,
     doc: ProductDocumentation
 ) {
-  val filePath = "$documentationRepository/${doc.productName}/${doc.page}"
+  val filePath = "$repositoryPath/${doc.productName}/${doc.page}"
   val docFile = File(filePath)
   if (!(docFile.exists() && docFile.isFile)) {
     // if the file does not exist, get the default
@@ -124,34 +122,27 @@ private suspend fun PipelineContext<Unit, ApplicationCall>.processProductWithFil
 
 // Non-current versions are obtained with git show
 private suspend fun PipelineContext<Unit, ApplicationCall>.processProductWithGit(
-    documentationRepository: String,
-    doc: ProductDocumentation
+    repositoryPath: String,
+    doc: ProductDocumentation,
+    gitWorker: GitWorker
 ) {
-  val repo: Repository = RepositoryBuilder()
-    .setGitDir(File("$documentationRepository/${doc.productName}/.git"))
-    .build()
-  val treeId = repo.resolve("refs/heads/${doc.productVersion}^{tree}")
-  if (treeId == null) {
+  try {
+    val bytes =
+        gitWorker.getPageForSubmodule(doc.productName, doc.page, doc.productVersion)
+            ?: throw GitWorker.InvalidVersionException()
+    call.application.log.info(
+        "Serving file ${doc.page} for ${doc.productName} at version ${doc.productVersion} via git")
+    call.respondBytes(bytes, ContentType.Text.Html)
+  } catch (e: GitWorker.InvalidVersionException) {
     // if the version is invalid, get the default
     call.application.log.info(
         "Version ${doc.productVersion} does not exist for ${doc.productName}, redirecting")
     call.respondRedirect("/help/${doc.productName}")
-    return
-  }
-  val treeWalk: TreeWalk? = TreeWalk.forPath(repo, doc.page, treeId)
-  if (treeWalk == null) {
+  } catch (e: GitWorker.InvalidPageException) {
+
     // same for the file path
     call.application.log.info(
         "File ${doc.page} does not exist for ${doc.productName} at version ${doc.productVersion}, redirecting")
     call.respondRedirect("/help/${doc.productName}/${doc.productVersion}")
-    return
   }
-  val blobId: ObjectId = treeWalk.getObjectId(0)
-  val objectReader = repo.newObjectReader()
-  val objectLoader = objectReader.open(blobId)
-  val bytes: ByteArray = objectLoader.bytes
-  objectReader.close()
-  call.application.log.info(
-      "Serving file ${doc.page} for ${doc.productName} at version ${doc.productVersion} via git")
-  call.respondBytes(bytes, ContentType.Text.Html)
 }
