@@ -98,7 +98,7 @@ private suspend fun PipelineContext<Unit, ApplicationCall>.processProduct(
   if (doc.productVersion == defaultVersionForProduct) {
     processProductWithFilesystem(repositoryPath, doc)
   } else {
-    processProductWithGit(repositoryPath, doc, gitWorker)
+    processProductWithGit(doc, gitWorker)
   }
 }
 
@@ -122,7 +122,6 @@ private suspend fun PipelineContext<Unit, ApplicationCall>.processProductWithFil
 
 // Non-current versions are obtained with git show
 private suspend fun PipelineContext<Unit, ApplicationCall>.processProductWithGit(
-    repositoryPath: String,
     doc: ProductDocumentation,
     gitWorker: GitWorker
 ) {

@@ -1,9 +1,6 @@
 package com.documentation.updater
 
 import com.documentation.StoredProductDocumentation
-import io.ktor.server.application.*
-import io.ktor.server.response.*
-import java.io.File
 import org.eclipse.jgit.api.CreateBranchCommand
 import org.eclipse.jgit.api.Git
 import org.eclipse.jgit.api.ListBranchCommand
@@ -12,22 +9,31 @@ import org.eclipse.jgit.lib.ObjectId
 import org.eclipse.jgit.lib.Ref
 import org.eclipse.jgit.submodule.SubmoduleWalk
 import org.eclipse.jgit.treewalk.TreeWalk
+import java.io.File
+
 
 class GitWorker(val repositoryPath: String, val repositoryOrigin: String) {
-  private var git: Git
-  private val versionRegex = """^.*(\d{4}\.\d+)$""".toRegex()
+    private var git: Git
+    private val versionRegex = """^.*(\d{4}\.\d+)$""".toRegex()
 
-  init {
-    try {
-      git = Git.open(File(repositoryPath))
-    } catch (e: RepositoryNotFoundException) {
-      git =
-          Git.cloneRepository()
-              .setURI(repositoryOrigin)
-              .setDirectory(File(repositoryPath))
-              .setCloneSubmodules(true)
-              .setCloneAllBranches(true)
-              .call()
+    init {
+        try {
+            git = Git.open(File(repositoryPath))
+        } catch (e: RepositoryNotFoundException) {
+            // val sshSessionFactory: SshSessionFactory? = SshSessionFactory.getInstance()
+            git =
+                Git.cloneRepository()
+                    .setURI(repositoryOrigin)
+                    .setDirectory(File(repositoryPath))
+                    .setCloneSubmodules(true)
+                    .setCloneAllBranches(true)
+                    // .setTransportConfigCallback(TransportConfigCallback() {
+                    //     fun configure(transport: Transport) {
+                    //          val sshTransport: SshTransport = transport as SshTransport
+                    //         sshTransport.sshSessionFactory = sshSessionFactory
+                    //     }
+                    // })
+                    .call()
     }
     git.close()
   }

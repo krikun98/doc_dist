@@ -32,17 +32,22 @@ branches of all submodules at a fixed interval.
 
 ## How to use:
 
-- Unzip `docs.zip` into the `docs` folder
 - Run the `run.sh` script
 
-A Docker image is planned for distribution.
+Alternatively,
+
+- `docker build -t doc_dist .`
+- `docker run -p 8080:8080 doc_dist`
+
+In both cases the sample documentation project will be pulled in automatically
+from the default `-o` option.
 
 ## TODO
 
-- Docker distribution image
 - Tests
+- Security credentials management system (for JGit to access private repos)
 
 ## Known issues
 
 - Update coroutine may cause data races, granular mutexes (per submodule) will be implemented
-
+- JGit is overly enthusiastic with its logging

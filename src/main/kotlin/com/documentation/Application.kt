@@ -1,5 +1,6 @@
 package com.documentation
 
+import ch.qos.logback.classic.Level
 import ch.qos.logback.classic.Logger
 import com.documentation.plugins.*
 import com.documentation.updater.GitWorker
@@ -36,25 +37,29 @@ fun main(args: Array<String>) {
           .option(
               ArgType.String,
               description = "Directory of documentation repository",
-              shortName = "d")
+              shortName = "d"
+          )
           .default(DEFAULT_REPO_DIR)
-  val repositoryOrigin by
-      parser
-          .option(
-              ArgType.String,
-              description = "Origin URL of documentation repository",
-              shortName = "o")
-          .default("")
-  try {
-    parser.parse(args)
+    val repositoryOrigin by
+    parser
+        .option(
+            ArgType.String,
+            description = "Origin URL of documentation repository",
+            shortName = "o"
+        )
+        .default(DEFAULT_REPO_URL)
+    log.level = Level.WARN
+    try {
+        parser.parse(args)
 
-    val gitWorker = GitWorker(repositoryPath, repositoryOrigin)
-    StoredProductDocumentation.readProductList(repositoryPath)
-    runBlocking {
-      launch {
-        StoredProductDocumentation.updateProductList(
-            gitWorker, repositoryPath, updateFrequency.toLong())
-      }
+        val gitWorker = GitWorker(repositoryPath, repositoryOrigin)
+        StoredProductDocumentation.readProductList(repositoryPath)
+        runBlocking {
+            launch {
+                StoredProductDocumentation.updateProductList(
+                    gitWorker, repositoryPath, updateFrequency.toLong()
+                )
+            }
       launch {
         embeddedServer(Netty, port = port, host = host) {
               configureHTTP()
