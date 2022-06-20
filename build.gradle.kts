@@ -34,6 +34,7 @@ dependencies {
     implementation("com.fasterxml.jackson.core:jackson-core:2.13.3")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.13.3")
     implementation("org.eclipse.jgit:org.eclipse.jgit:6.2.0.202206071550-r")
+    implementation("org.jetbrains.kotlinx:kotlinx-cli:0.3.4")
     testImplementation("io.ktor:ktor-server-tests-jvm:$ktor_version")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit:$kotlin_version")
 }
