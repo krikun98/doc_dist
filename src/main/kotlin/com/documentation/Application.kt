@@ -12,8 +12,9 @@ import kotlinx.cli.default
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.slf4j.LoggerFactory
+import kotlin.concurrent.thread
 
-val log: Logger = LoggerFactory.getLogger("trackerMain") as Logger
+val log: Logger = LoggerFactory.getLogger("applicationMain") as Logger
 
 fun main(args: Array<String>) {
   val parser = ArgParser("documentationServer")
@@ -30,16 +31,17 @@ fun main(args: Array<String>) {
           .option(
               ArgType.Int,
               description = "Documentation repository update frequency (in minutes)",
-              shortName = "f")
-          .default(DEFAULT_UPD_FREQ)
-  val repositoryPath by
-      parser
-          .option(
-              ArgType.String,
-              description = "Directory of documentation repository",
-              shortName = "d"
+              shortName = "f"
           )
-          .default(DEFAULT_REPO_DIR)
+          .default(DEFAULT_UPD_FREQ)
+    val repositoryPath by
+    parser
+        .option(
+            ArgType.String,
+            description = "Directory of documentation repository",
+            shortName = "d"
+        )
+        .default(DEFAULT_REPO_DIR)
     val repositoryOrigin by
     parser
         .option(
@@ -54,21 +56,26 @@ fun main(args: Array<String>) {
 
         val gitWorker = GitWorker(repositoryPath, repositoryOrigin)
         StoredProductDocumentation.readProductList(repositoryPath)
+
+        thread(start = true) {
+            runBlocking {
+                launch {
+                    StoredProductDocumentation.updateProductList(
+                        gitWorker, repositoryPath, updateFrequency.toLong()
+                    )
+                }
+            }
+        }
         runBlocking {
             launch {
-                StoredProductDocumentation.updateProductList(
-                    gitWorker, repositoryPath, updateFrequency.toLong()
-                )
+                embeddedServer(Netty, port = port, host = host) {
+                    configureHTTP()
+                    configureRouting(repositoryPath, gitWorker)
+                }
+                    .start(wait = true)
             }
-      launch {
-        embeddedServer(Netty, port = port, host = host) {
-              configureHTTP()
-              configureRouting(repositoryPath, gitWorker)
-            }
-            .start(wait = true)
-      }
-    }
-  } catch (e: Exception) {
+        }
+    } catch (e: Exception) {
     log.error("Error! ${e.message}", e)
     println("Error! ${e.message}")
   }

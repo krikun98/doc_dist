@@ -1,5 +1,6 @@
 package com.documentation
 
+import ch.qos.logback.classic.Logger
 import com.documentation.updater.GitWorker
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
@@ -7,9 +8,12 @@ import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import java.io.File
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Mutex
+import org.slf4j.LoggerFactory
 
 data class StoredProductDocumentation(val productVersion: String, val initialPage: String) {
   companion object {
+    val log: Logger = LoggerFactory.getLogger("ProductList") as Logger
+
     private val mapper = jacksonObjectMapper()
 
     private var productList: Map<String, StoredProductDocumentation> = HashMap()
@@ -32,10 +36,13 @@ data class StoredProductDocumentation(val productVersion: String, val initialPag
     ) {
       while (true) {
         mut.lock()
+        log.debug("locked mutex, updating")
         readProductList(productListLocation)
         gitWorker.updateModules(productList)
         mut.unlock()
-        delay(updateFrequency * 60 * 1000)
+        log.debug("unlocked mutex, waiting")
+        Thread.sleep(updateFrequency * 60000L) // delay lets go of the task and never gets back to it for some reason
+        log.debug("finished delay")
       }
     }
 
