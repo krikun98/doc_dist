@@ -56,17 +56,12 @@ fun main(args: Array<String>) {
 
         val gitWorker = GitWorker(repositoryPath, repositoryOrigin)
         StoredProductDocumentation.readProductList(repositoryPath)
-
-        thread(start = true) {
-            runBlocking {
-                launch {
-                    StoredProductDocumentation.updateProductList(
-                        gitWorker, repositoryPath, updateFrequency.toLong()
-                    )
-                }
-            }
-        }
         runBlocking {
+            launch {
+                StoredProductDocumentation.updateProductList(
+                    gitWorker, repositoryPath, updateFrequency.toLong()
+                )
+            }
             launch {
                 embeddedServer(Netty, port = port, host = host) {
                     configureHTTP()

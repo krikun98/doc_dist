@@ -8,6 +8,7 @@ import io.ktor.server.application.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.util.pipeline.*
+import kotlinx.coroutines.yield
 import java.io.File
 
 fun Application.configureRouting(repositoryPath: String, gitWorker: GitWorker) {
@@ -40,6 +41,7 @@ fun Route.getProduct(repositoryPath: String, gitWorker: GitWorker) {
         return@get
       }
       processProduct(repositoryPath, doc, gitWorker)
+      yield()
     }
   }
 }
@@ -89,7 +91,6 @@ private suspend fun parseTokens(productName: String, tokens: List<String>?): Pro
       page = StoredProductDocumentation.getInitialPage(productName)
     }
     // whatever's left over is a page path
-    page = restOfTokens.joinToString("/")
   }
   return ProductDocumentation(productName, version, page)
 }

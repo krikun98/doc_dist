@@ -41,15 +41,19 @@ data class StoredProductDocumentation(val productVersion: String, val initialPag
         gitWorker.updateModules(productList)
         mut.unlock()
         log.debug("unlocked mutex, waiting")
-        Thread.sleep(updateFrequency * 60000L) // delay lets go of the task and never gets back to it for some reason
+        // delay lets go of the thread and never gets back to it for some reason
+        // I set it artificially low here to show that
+        delay(1000) // updateFrequency * 60000L)
         log.debug("finished delay")
       }
     }
 
     suspend fun get(productName: String): StoredProductDocumentation? {
       mut.lock()
+      log.debug("locked mutex, getting")
       val doc = productList[productName]
       mut.unlock()
+      log.debug("unlocked mutex, free from get")
       if (doc != null) {
         return doc
       }
