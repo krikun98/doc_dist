@@ -83,6 +83,11 @@ private suspend fun parseTokens(productName: String, tokens: List<String>?): Pro
     }
   }
   if (restOfTokens.isNotEmpty()) {
+    if (pageRegex.matches(tokens.last())) {
+      page = restOfTokens.joinToString("/")
+    } else {
+      page = StoredProductDocumentation.getInitialPage(productName)
+    }
     // whatever's left over is a page path
     page = restOfTokens.joinToString("/")
   }
